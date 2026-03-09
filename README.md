@@ -1,10 +1,17 @@
-Certainly! Creating a SQL Syntax Cheat Sheet is a great idea to help others learn and reference SQL commands quickly. Below is a comprehensive cheat sheet formatted in Markdown, suitable for a GitHub repository.
-
----
-
 # SQL Syntax Cheat Sheet
 
-A quick reference guide to SQL syntax, commands, and functions.
+[![Stars](https://img.shields.io/github/stars/mergisi/sql-syntax-cheat-sheet?style=social)](https://github.com/mergisi/sql-syntax-cheat-sheet)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> A comprehensive SQL syntax reference covering commands, functions, operators, and concepts across MySQL, PostgreSQL, SQL Server, SQLite, and Oracle.
+
+<div align="center">
+
+**Don't want to memorize SQL syntax?** Describe what you need in plain English and get the query instantly.
+
+**[Try AI2SQL - Generate SQL from English →](https://ai2sql.io)**
+
+</div>
 
 ---
 
@@ -48,7 +55,12 @@ A quick reference guide to SQL syntax, commands, and functions.
     - [ORDER BY](#order-by)
     - [LIMIT / TOP / FETCH](#limit--top--fetch)
 14. [Data Types](#14-data-types)
-15. [Additional Resources](#15-additional-resources)
+15. [Window Functions](#15-window-functions)
+16. [Common Table Expressions (CTEs)](#16-common-table-expressions-ctes)
+17. [Database-Specific Syntax](#17-database-specific-syntax)
+18. [Performance and Optimization](#18-performance-and-optimization)
+19. [Common Mistakes and Fixes](#19-common-mistakes-and-fixes)
+20. [Additional Resources](#20-additional-resources)
 
 ---
 
@@ -401,6 +413,8 @@ FROM table1
 FULL OUTER JOIN table2 ON table1.column = table2.column;
 ```
 
+> **Writing complex JOINs is error-prone.** Describe your tables and relationships in English, and [AI2SQL](https://ai2sql.io) generates the correct JOIN for you.
+
 ---
 
 ## 9. Subqueries
@@ -420,6 +434,8 @@ SELECT FirstName, LastName
 FROM Customers
 WHERE CustomerID IN (SELECT CustomerID FROM Orders WHERE TotalAmount > 1000);
 ```
+
+> **Nested subqueries getting complicated?** Just describe what data you need. [AI2SQL](https://ai2sql.io) handles the nesting automatically.
 
 ---
 
@@ -507,6 +523,8 @@ BEGIN
 END;
 ```
 
+> **Skip the boilerplate.** Describe your procedure's logic in plain English and [AI2SQL](https://ai2sql.io) writes the full stored procedure.
+
 ---
 
 ## 13. Common Clauses
@@ -574,6 +592,8 @@ Limits the number of records returned.
   FETCH FIRST number ROWS ONLY;
   ```
 
+> **Tired of looking up syntax differences between databases?** [AI2SQL](https://ai2sql.io) generates the right syntax for your specific database.
+
 ---
 
 ## 14. Data Types
@@ -610,25 +630,171 @@ Limits the number of records returned.
 
 ---
 
-## 15. Additional Resources
+## 15. Window Functions
 
-- **Official Documentation**
-  - [MySQL Documentation](https://dev.mysql.com/doc/)
-  - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-  - [SQL Server Documentation](https://docs.microsoft.com/en-us/sql/sql-server/)
-  - [SQLite Documentation](https://www.sqlite.org/docs.html)
-- **Online Tutorials**
-  - [W3Schools SQL Tutorial](https://www.w3schools.com/sql/)
-  - [TutorialsPoint SQL Tutorial](https://www.tutorialspoint.com/sql/index.htm)
-- **Practice Platforms**
-  - [SQLBolt](https://sqlbolt.com/)
-  - [HackerRank SQL Challenges](https://www.hackerrank.com/domains/sql)
-  - [LeetCode Database Problems](https://leetcode.com/problemset/database/)
+```sql
+-- ROW_NUMBER
+SELECT name, department, salary,
+       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank
+FROM employees;
 
-### AI-Powered Tools
+-- RANK and DENSE_RANK
+SELECT name, salary,
+       RANK() OVER (ORDER BY salary DESC) as rank,
+       DENSE_RANK() OVER (ORDER BY salary DESC) as dense_rank
+FROM employees;
 
-- **[AI2sql](https://www.ai2sql.io/)**: Generate SQL queries from natural language descriptions using AI.
+-- Running total
+SELECT date, amount,
+       SUM(amount) OVER (ORDER BY date) as running_total
+FROM transactions;
 
+-- LAG and LEAD
+SELECT date, revenue,
+       LAG(revenue, 1) OVER (ORDER BY date) as prev_day,
+       revenue - LAG(revenue, 1) OVER (ORDER BY date) as daily_change
+FROM daily_sales;
+```
+
+---
+
+## 16. Common Table Expressions (CTEs)
+
+```sql
+-- Basic CTE
+WITH active_customers AS (
+    SELECT CustomerID, FirstName, LastName
+    FROM Customers
+    WHERE LastOrderDate > DATE_SUB(NOW(), INTERVAL 90 DAY)
+)
+SELECT * FROM active_customers;
+
+-- Recursive CTE (org chart)
+WITH RECURSIVE org_chart AS (
+    SELECT id, name, manager_id, 1 as level
+    FROM employees WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, oc.level + 1
+    FROM employees e
+    JOIN org_chart oc ON e.manager_id = oc.id
+)
+SELECT * FROM org_chart ORDER BY level;
+```
+
+---
+
+## 17. Database-Specific Syntax
+
+### PostgreSQL
+
+```sql
+-- UPSERT
+INSERT INTO users (email, name) VALUES ('a@b.com', 'Alice')
+ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+
+-- JSON queries
+SELECT data->>'name' as name FROM events WHERE data->>'type' = 'signup';
+
+-- Array operations
+SELECT * FROM posts WHERE tags @> ARRAY['sql', 'tutorial'];
+```
+
+### MySQL
+
+```sql
+-- UPSERT
+INSERT INTO users (email, name) VALUES ('a@b.com', 'Alice')
+ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+-- JSON queries
+SELECT JSON_EXTRACT(data, '$.name') FROM events;
+
+-- Full-text search
+SELECT * FROM articles WHERE MATCH(title, body) AGAINST('sql tutorial');
+```
+
+### SQL Server
+
+```sql
+-- MERGE (UPSERT)
+MERGE INTO users AS target
+USING (VALUES ('a@b.com', 'Alice')) AS source (email, name)
+ON target.email = source.email
+WHEN MATCHED THEN UPDATE SET name = source.name
+WHEN NOT MATCHED THEN INSERT (email, name) VALUES (source.email, source.name);
+
+-- STRING_AGG
+SELECT department, STRING_AGG(name, ', ') as team
+FROM employees GROUP BY department;
+```
+
+---
+
+## 18. Performance and Optimization
+
+```sql
+-- EXPLAIN query plan
+EXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 42;
+
+-- Index hints (MySQL)
+SELECT * FROM orders USE INDEX (idx_customer) WHERE customer_id = 42;
+
+-- Avoid SELECT *
+SELECT id, name, email FROM users WHERE active = 1;  -- faster than SELECT *
+
+-- Use EXISTS instead of IN for large datasets
+SELECT * FROM customers c
+WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
+```
+
+---
+
+## 19. Common Mistakes and Fixes
+
+```sql
+-- WRONG: NULL comparison
+SELECT * FROM users WHERE status = NULL;
+-- CORRECT:
+SELECT * FROM users WHERE status IS NULL;
+
+-- WRONG: GROUP BY with non-aggregated columns
+SELECT name, department, COUNT(*) FROM employees GROUP BY department;
+-- CORRECT:
+SELECT department, COUNT(*) FROM employees GROUP BY department;
+
+-- WRONG: Using HAVING instead of WHERE
+SELECT * FROM orders HAVING total > 100;
+-- CORRECT:
+SELECT * FROM orders WHERE total > 100;
+
+-- WRONG: Cartesian join (missing JOIN condition)
+SELECT * FROM orders, customers;
+-- CORRECT:
+SELECT * FROM orders JOIN customers ON orders.customer_id = customers.id;
+```
+
+---
+
+## 20. Additional Resources
+
+### AI-Powered SQL Tools
+
+- **[AI2SQL](https://ai2sql.io)** - Generate SQL queries from plain English descriptions. Supports MySQL, PostgreSQL, SQL Server, SQLite, and Oracle. No SQL knowledge required.
+
+### Official Documentation
+- [MySQL Documentation](https://dev.mysql.com/doc/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [SQL Server Documentation](https://docs.microsoft.com/en-us/sql/sql-server/)
+- [SQLite Documentation](https://www.sqlite.org/docs.html)
+
+### Online Tutorials
+- [W3Schools SQL Tutorial](https://www.w3schools.com/sql/)
+- [TutorialsPoint SQL Tutorial](https://www.tutorialspoint.com/sql/index.htm)
+
+### Practice Platforms
+- [SQLBolt](https://sqlbolt.com/)
+- [HackerRank SQL Challenges](https://www.hackerrank.com/domains/sql)
+- [LeetCode Database Problems](https://leetcode.com/problemset/database/)
 
 ---
 
@@ -647,3 +813,11 @@ This cheat sheet is released under the [MIT License](LICENSE).
 **Note:** SQL syntax may vary slightly between different database systems (e.g., MySQL, PostgreSQL, SQL Server, Oracle). Always refer to the official documentation of the database you are using for exact syntax and additional features.
 
 ---
+
+<div align="center">
+
+**Writing SQL by hand?** Describe what you need in English and get the query instantly.
+
+**[Try AI2SQL →](https://ai2sql.io)**
+
+</div>
